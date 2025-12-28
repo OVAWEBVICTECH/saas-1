@@ -1,0 +1,7 @@
+{
+  "name": "NexusAI SaaS Dashboard",
+  "description": "A comprehensive AI-driven business intelligence platform featuring market research, visual data analytics, and automated content generation powered by Gemini.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
