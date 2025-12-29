@@ -1,6 +1,6 @@
 {
-  "name": "NexusAI SaaS Dashboard",
-  "description": "A comprehensive AI-driven business intelligence platform featuring market research, visual data analytics, and automated content generation powered by Gemini.",
+  "name": "Webvic Flow SaaS Platform",
+  "description": "An elite AI-driven business intelligence and deployment platform engineered by Webvictech, featuring deep market research and automated content synthesis.",
   "requestFramePermissions": [
     "geolocation"
   ]

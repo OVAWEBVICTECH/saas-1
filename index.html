@@ -3,8 +3,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NexusAI - SaaS Intelligence</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Webvic Flow - SaaS Intelligence by Webvictech</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -13,57 +13,94 @@
         :root {
             --bg-primary: #020617;
             --accent-primary: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.3);
+            --accent-glow: rgba(59, 130, 246, 0.4);
+        }
+
+        * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            box-sizing: border-box;
         }
 
         body { 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             background-color: var(--bg-primary);
+            color: #f1f5f9;
+            overscroll-behavior-y: none;
         }
 
         .mono { font-family: 'JetBrains Mono', monospace; }
 
-        .glass { 
-            background: rgba(15, 23, 42, 0.6); 
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+        /* Dynamic Mesh Background */
+        .mesh-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background-color: #020617;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0, transparent 50%), 
+                radial-gradient(at 50% 0%, rgba(139, 92, 246, 0.08) 0, transparent 50%), 
+                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0, transparent 50%);
+            filter: blur(80px);
         }
 
-        .glass-dark {
-            background: rgba(2, 6, 23, 0.8);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.03);
+        .glass { 
+            background: rgba(15, 23, 42, 0.45); 
+            backdrop-filter: blur(20px) saturate(190%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-hover:hover {
+            background: rgba(15, 23, 42, 0.6);
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+        }
+
+        .transition-soft {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.1); }
+        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { 
             background: rgba(59, 130, 246, 0.2); 
-            border-radius: 20px; 
-            transition: all 0.3s;
+            border-radius: 10px; 
         }
         ::-webkit-scrollbar-thumb:hover { background: var(--accent-primary); }
 
-        /* Animation Classes */
-        .fade-in-up {
-            animation: fadeInUp 0.5s ease-out forwards;
-        }
-
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Text Gradients */
-        .text-gradient {
-            background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
         .text-glow {
-            text-shadow: 0 0 15px var(--accent-glow);
+            text-shadow: 0 0 25px var(--accent-glow);
+        }
+
+        .bento-card {
+            border-radius: 36px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        @keyframes pulse-soft {
+            0%, 100% { opacity: 0.9; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.05); }
+        }
+        .animate-pulse-soft { animation: pulse-soft 3s infinite ease-in-out; }
+
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* Mobile specific adjustments */
+        @media (max-width: 640px) {
+            .bento-card {
+                border-radius: 28px;
+            }
         }
     </style>
 <script type="importmap">
@@ -80,7 +117,8 @@
 }
 </script>
 </head>
-<body class="bg-[#020617] text-slate-100 antialiased overflow-hidden">
+<body class="overflow-hidden">
+    <div class="mesh-bg"></div>
     <div id="root"></div>
 </body>
 </html>

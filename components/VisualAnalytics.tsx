@@ -91,22 +91,19 @@ const VisualAnalytics: React.FC = () => {
                 <div className="h-[400px] w-full px-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={report.chartData}>
-                      <CartesianGrid strokeDasharray="0" vertical={false} stroke="rgba(255,255,255,0.03)" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.03)" />
                       <XAxis 
                         dataKey="name" 
                         stroke="#475569" 
                         fontSize={11} 
-                        mono 
-                        font-weight="bold" 
                         tickLine={false} 
                         axisLine={false} 
                         dy={20} 
-                        tick={{fill: '#64748b', fontWeight: '800', letterSpacing: '0.1em'}}
+                        tick={{fill: '#64748b', fontWeight: 800, letterSpacing: '0.1em'}}
                       />
                       <YAxis 
                         stroke="#475569" 
                         fontSize={11} 
-                        mono 
                         tickLine={false} 
                         axisLine={false} 
                         tick={{fill: '#475569'}}
@@ -121,7 +118,7 @@ const VisualAnalytics: React.FC = () => {
                           boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
                           padding: '12px 18px'
                         }}
-                        itemStyle={{ color: '#fff', fontWeight: '800', fontSize: '14px' }}
+                        itemStyle={{ color: '#fff', fontWeight: 800, fontSize: '14px' }}
                         labelStyle={{ color: '#64748b', fontWeight: 'bold', fontSize: '10px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.1em' }}
                       />
                       <Bar dataKey="value" radius={[12, 12, 0, 0]} barSize={40}>

@@ -7,108 +7,109 @@ interface DashboardProps {
 
 const Dashboard: React.FC<DashboardProps> = ({ connectedPlatforms }) => {
   const stats = [
-    { label: 'Total Reach', value: '1.2M', change: '+18.4%', icon: 'fa-users', color: 'text-blue-500', glow: 'shadow-blue-500/10' },
-    { label: 'Engagement', value: '4.8%', change: '+0.6%', icon: 'fa-heart', color: 'text-rose-500', glow: 'shadow-rose-500/10' },
-    { label: 'Velocity', value: '14/wk', change: '-2%', icon: 'fa-bolt', color: 'text-yellow-500', glow: 'shadow-yellow-500/10' },
-    { label: 'Growth', value: '92/100', change: '+5', icon: 'fa-chart-line', color: 'text-emerald-500', glow: 'shadow-emerald-500/10' },
+    { label: 'Total Reach', value: '1.2M', change: '+18%', icon: 'fa-users-viewfinder', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+    { label: 'Engagement', value: '4.8%', change: '+0.6%', icon: 'fa-fire-flame-curved', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+    { label: 'Sync Rate', value: '98%', change: '+2', icon: 'fa-bolt-auto', color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+    { label: 'Velocity', value: '14/wk', change: '-1%', icon: 'fa-gauge-high', color: 'text-rose-400', bg: 'bg-rose-500/10' },
   ];
 
   return (
-    <div className="py-8 md:py-12 fade-in-up">
-      <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 md:mb-16 gap-6">
-        <div>
-          <h1 className="text-3xl md:text-5xl font-black text-white mb-3 text-gradient">System Overview</h1>
-          <p className="text-slate-500 font-medium text-lg">Harnessing <span className="text-blue-500 font-bold">{connectedPlatforms.length} active pipelines</span> across your network.</p>
+    <div className="py-10 md:py-16 space-y-12 md:space-y-16 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {/* Dynamic Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+        <div className="space-y-2">
+          <h1 className="text-5xl md:text-6xl font-black text-white tracking-tighter">System <span className="text-blue-500 italic drop-shadow-[0_0_15px_rgba(59,130,246,0.2)]">Performance</span></h1>
+          <p className="text-slate-500 text-lg font-medium tracking-tight">Orchestrating <span className="text-white font-black">{connectedPlatforms.length}</span> concurrent neural marketing pipelines.</p>
         </div>
-        <div className="flex gap-4">
-          <div className="glass px-6 py-3 rounded-2xl flex items-center gap-3 border border-white/5">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_12px_#10b981]"></span>
-            <span className="text-[10px] mono font-bold text-white uppercase tracking-widest">Global Status: Online</span>
-          </div>
+        <div className="flex items-center gap-4 px-8 py-4 glass rounded-full border border-white/10 shadow-2xl self-start lg:self-center ring-1 ring-white/5">
+          <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] animate-pulse-soft"></div>
+          <span className="text-[11px] mono font-black text-slate-300 uppercase tracking-[0.3em]">Network Secure</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-12 md:mb-16">
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8">
         {stats.map((stat, i) => (
-          <div key={i} className={`bg-slate-900/40 border border-white/5 p-8 rounded-[32px] glass hover:border-blue-500/30 transition-all group shadow-2xl ${stat.glow}`}>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-8 bg-slate-950 border border-white/5 ${stat.color} group-hover:scale-110 transition-transform`}>
-              <i className={`fas ${stat.icon} text-lg`}></i>
+          <div key={i} className="glass bento-card p-10 group hover:border-blue-500/30 transition-soft shadow-3xl ring-1 ring-white/5">
+            <div className={`w-14 h-14 rounded-2xl ${stat.bg} ${stat.color} flex items-center justify-center mb-8 border border-white/5 group-hover:scale-110 group-hover:rotate-6 transition-soft shadow-inner`}>
+              <i className={`fas ${stat.icon} text-2xl`}></i>
             </div>
-            <p className="text-slate-500 text-[10px] mono font-bold uppercase tracking-widest mb-2">{stat.label}</p>
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-3xl md:text-4xl font-black text-white tracking-tight">{stat.value}</h3>
-              <span className={`text-[10px] mono font-bold px-2 py-1 rounded-lg ${stat.change.startsWith('+') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
-                {stat.change}
-              </span>
+            <div className="space-y-2">
+              <p className="text-[11px] mono font-black text-slate-600 uppercase tracking-[0.4em]">{stat.label}</p>
+              <div className="flex items-baseline justify-between">
+                <h3 className="text-4xl font-black text-white tracking-tight">{stat.value}</h3>
+                <span className={`text-[11px] font-black px-3 py-1 rounded-xl ${stat.change.startsWith('+') ? 'text-emerald-500 bg-emerald-500/10 border border-emerald-500/20' : 'text-rose-500 bg-rose-500/10 border border-rose-500/20'}`}>
+                  {stat.change}
+                </span>
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-10">
-        <div className="lg:col-span-2 bg-slate-900/40 border border-white/5 rounded-[40px] p-8 md:p-12 glass shadow-2xl">
-          <div className="flex items-center justify-between mb-12">
-            <div>
-              <h3 className="text-xl md:text-2xl font-black text-white mb-1">Performance Velocity</h3>
-              <p className="text-xs text-slate-500 mono uppercase tracking-widest font-bold">Real-time aggregate engagement</p>
+      {/* Analytics Engine Display */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Engagement Visualization */}
+        <div className="lg:col-span-8 glass bento-card p-10 md:p-14 space-y-12 shadow-4xl ring-1 ring-white/5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="space-y-1">
+              <h3 className="text-2xl font-black text-white tracking-tight">Signal Velocity</h3>
+              <p className="text-[11px] mono font-black text-slate-600 uppercase tracking-[0.3em]">Neural Data Feed Delta</p>
             </div>
-            <div className="flex gap-1.5 p-1 bg-slate-950/50 rounded-xl border border-white/5">
-               <button className="px-4 py-1.5 text-[10px] font-bold text-white bg-blue-600 rounded-lg shadow-lg shadow-blue-600/20">Week</button>
-               <button className="px-4 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-300">Month</button>
+            <div className="flex gap-2 p-1.5 bg-slate-950/60 rounded-[18px] border border-white/5 glass">
+               <button className="px-6 py-2.5 text-[11px] font-black text-white bg-blue-600 rounded-xl shadow-xl transition-soft">WEEK</button>
+               <button className="px-6 py-2.5 text-[11px] font-black text-slate-500 hover:text-white transition-soft">MONTH</button>
             </div>
           </div>
-          
-          <div className="h-[250px] md:h-[350px] flex items-end gap-2 md:gap-4 pb-10 px-2">
-            {[40, 70, 45, 90, 65, 80, 50, 85, 95, 60, 75, 55].map((val, i) => (
-              <div key={i} className="flex-1 bg-slate-800/50 rounded-t-xl relative group transition-all hover:bg-blue-600/10 border border-white/5 border-b-0">
+
+          <div className="h-80 flex items-end gap-3 md:gap-4 pb-4">
+            {[55, 70, 45, 90, 75, 100, 60, 70, 85, 45, 65, 95].map((h, i) => (
+              <div key={i} className="flex-1 bg-slate-800/10 rounded-t-[14px] relative group transition-soft overflow-hidden h-full">
                 <div 
-                  className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-blue-600 to-indigo-500 rounded-t-xl transition-all group-hover:brightness-125 shadow-[0_0_20px_rgba(59,130,246,0.3)]" 
-                  style={{ height: `${val}%` }}
-                ></div>
-                <div className="absolute -top-10 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-white text-slate-950 text-[10px] font-black px-2 py-1 rounded-md shadow-xl pointer-events-none">
-                  {val}%
+                  className="absolute bottom-0 left-0 right-0 bg-blue-600 opacity-70 group-hover:opacity-100 transition-all duration-700 shadow-[0_0_20px_rgba(59,130,246,0.3)]" 
+                  style={{ height: `${h}%` }}
+                >
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-white/20"></div>
                 </div>
               </div>
             ))}
           </div>
-          <div className="flex justify-between text-[10px] mono font-bold text-slate-600 px-4 uppercase tracking-[0.4em] pt-4 border-t border-white/5">
-            <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+          <div className="flex justify-between text-[11px] mono font-black text-slate-700 uppercase tracking-[0.4em] pt-8 border-t border-white/5">
+            <span>MON</span><span>WED</span><span>FRI</span><span>SUN</span>
           </div>
         </div>
 
-        <div className="space-y-8">
-          <div className="bg-gradient-to-br from-blue-600 via-indigo-700 to-blue-800 rounded-[40px] p-10 text-white relative overflow-hidden shadow-2xl shadow-blue-950 group">
-             <div className="relative z-10">
-               <h4 className="text-2xl font-black mb-3 italic">Nexus Elite</h4>
-               <p className="text-blue-100 text-sm mb-8 leading-relaxed font-medium">Activate autonomous multi-variant deployment and viral trend detection.</p>
-               <button className="bg-white text-blue-700 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-blue-50 transition-all shadow-xl active:scale-95">
-                 Upgrade Now
-               </button>
-             </div>
-             <i className="fas fa-microchip absolute -bottom-10 -right-10 text-white/10 text-[180px] -rotate-12 group-hover:scale-110 group-hover:rotate-0 transition-transform duration-700"></i>
+        {/* Global Hub Cards */}
+        <div className="lg:col-span-4 flex flex-col gap-10">
+          <div className="bg-gradient-to-br from-blue-600 via-indigo-700 to-indigo-900 rounded-[40px] p-12 text-white relative overflow-hidden group shadow-5xl shadow-blue-900/40 ring-1 ring-white/10">
+            <div className="relative z-10 space-y-6">
+              <h4 className="text-3xl font-black italic tracking-tighter leading-none">Webvic Elite</h4>
+              <p className="text-blue-100/70 text-base font-medium leading-relaxed tracking-tight">Unleash autonomous multi-channel deployment and neural trend synthesis engines.</p>
+              <button className="w-full bg-white text-blue-900 py-5 rounded-[24px] font-black text-[11px] uppercase tracking-[0.3em] hover:shadow-2xl transition-soft active:scale-95 shadow-xl">
+                UPGRADE KERNEL
+              </button>
+            </div>
+            <i className="fas fa-microchip absolute -bottom-12 -right-12 text-white/5 text-[220px] -rotate-12 group-hover:rotate-0 transition-all duration-1000"></i>
           </div>
 
-          <div className="bg-slate-900/40 border border-white/5 rounded-[40px] p-10 glass shadow-2xl">
-             <div className="flex items-center justify-between mb-8">
-               <h4 className="font-black text-white uppercase tracking-[0.2em] text-xs">Queue</h4>
-               <span className="text-[10px] mono bg-slate-800 px-2 py-1 rounded text-slate-400">Next 24h</span>
-             </div>
-             <div className="space-y-5">
-               {[
-                 { platform: 'linkedin', time: '2h', title: 'Q3 Product Sync', color: 'text-blue-400' },
-                 { platform: 'instagram', time: '6PM', title: 'Brand Story Concept', color: 'text-rose-400' }
-               ].filter(post => connectedPlatforms.includes(post.platform)).map((post, i) => (
-                 <div key={i} className="flex items-center gap-4 p-4 bg-slate-950/40 hover:bg-slate-800/60 rounded-2xl border border-white/5 transition-all cursor-pointer group">
-                   <div className={`w-10 h-10 rounded-xl bg-slate-900 border border-white/10 flex items-center justify-center ${post.color} group-hover:scale-110 transition-transform`}>
-                     <i className={`fab fa-${post.platform} text-base`}></i>
-                   </div>
-                   <div className="min-w-0">
-                     <p className="text-sm font-bold text-white truncate group-hover:text-blue-400 transition-colors">{post.title}</p>
-                     <p className="text-[9px] mono font-bold text-slate-500 uppercase tracking-widest">Starts in {post.time}</p>
-                   </div>
+          <div className="glass bento-card p-12 flex-1 shadow-4xl ring-1 ring-white/5">
+            <h4 className="text-[11px] mono font-black text-white uppercase tracking-[0.4em] mb-10 flex items-center justify-between">
+              Signal Queue
+              <span className="px-3 py-1 bg-blue-500/10 text-blue-500 rounded-lg border border-blue-500/20 text-[9px]">LOCKED</span>
+            </h4>
+            <div className="space-y-6">
+               {['Linkedin Strategic Refinement', 'Instagram Creative Overlay'].map((task, i) => (
+                 <div key={i} className="p-6 bg-slate-950/40 rounded-[28px] border border-white/5 flex items-center gap-5 group hover:bg-slate-900/60 hover:border-white/10 transition-soft cursor-pointer shadow-inner">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center text-blue-500 border border-white/5 group-hover:scale-110 transition-soft shadow-2xl">
+                      <i className={`fab fa-${i === 0 ? 'linkedin-in' : 'instagram'} text-lg`}></i>
+                    </div>
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="text-sm font-black text-white truncate group-hover:text-blue-400 transition-colors">{task}</p>
+                      <p className="text-[10px] mono font-bold text-slate-600 uppercase tracking-widest">Awaiting Pulse Signal</p>
+                    </div>
                  </div>
                ))}
-             </div>
+            </div>
           </div>
         </div>
       </div>

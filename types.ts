@@ -26,9 +26,22 @@ export interface SocialPlatform {
   handle?: string;
 }
 
+export interface DesignConfig {
+  logoPosition: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'custom';
+  logoX: number; // 0-100 percentage
+  logoY: number; // 0-100 percentage
+  logoSize: number;
+  textPosition: 'top' | 'center' | 'bottom' | 'custom';
+  textX: number; // 0-100 percentage
+  textY: number; // 0-100 percentage
+  textSize: number;
+  textAlign: 'left' | 'center' | 'right';
+}
+
 export interface SocialPost {
   platformId: string;
   content: string;
+  graphicHeadline: string; // New: Short punchy text for image overlay
   hashtags: string[];
   status: 'draft' | 'posting' | 'posted' | 'failed' | 'scheduled';
   deploymentStage?: 'handshake' | 'upload' | 'propagate' | 'verify';
@@ -38,11 +51,14 @@ export interface SocialPost {
   visualUrl?: string;
   visualPrompt?: string;
   liveUrl?: string;
+  designConfig: DesignConfig;
 }
 
 export interface GenerationResult {
   companyName: string;
   tagline: string;
+  brandVoice?: string;
+  targetAudience?: string;
   posts: SocialPost[];
   sources?: ResearchSource[];
   researchSummary?: string;
@@ -57,6 +73,12 @@ export interface AnalyticsReport {
   chartData: { name: string; value: number }[];
   summary: string;
   keyTakeaways: string[];
+}
+
+export interface SocialAnalytics {
+  reach: number;
+  engagement: number;
+  clicks: number;
 }
 
 export interface ContentIdea {
