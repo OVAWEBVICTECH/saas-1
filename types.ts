@@ -1,7 +1,11 @@
 
 export enum NavPage {
   DASHBOARD = 'dashboard',
-  GENERATE = 'generate',
+  GENERATE = 'generate', // This will now serve as the parent or Design Studio
+  STUDIO_DESIGN = 'studio_design',
+  STUDIO_IDEATION = 'studio_ideation',
+  STUDIO_INTELLIGENCE = 'studio_intelligence',
+  STUDIO_ANALYTICS = 'studio_analytics',
   CHANNELS = 'channels',
   HISTORY = 'history',
   SETTINGS = 'settings'
@@ -48,6 +52,7 @@ export interface SocialPost {
   timestamp?: string;
   suggestedTime?: string;
   scheduledTime?: string;
+  scheduledDay?: string; // New: Monday, Tuesday, etc.
   visualUrl?: string;
   visualPrompt?: string;
   liveUrl?: string;
@@ -62,6 +67,7 @@ export interface GenerationResult {
   posts: SocialPost[];
   sources?: ResearchSource[];
   researchSummary?: string;
+  isAutoPilot?: boolean; // New: Flag for auto-pilot generation
 }
 
 export interface ResearchSource {

@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { GenerationResult, ResearchSource, AnalyticsReport, ContentIdea, SocialAccount, SocialPost, DesignConfig } from "../types";
 
 /**
@@ -14,7 +14,7 @@ export class AIError extends Error {
 
 /**
  * Uses the default injected API key.
- * Always create a new instance to ensure up-to-date key access.
+ * Always create a new instance right before calling to ensure up-to-date key access.
  */
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
@@ -23,9 +23,13 @@ const handleAIRequest = async <T>(requestPromise: Promise<T>): Promise<T> => {
     return await requestPromise;
   } catch (error: any) {
     console.error("Gemini API Error details:", error);
-    // Graceful error handling for common API issues
+    
+    // Specifically handle quota exhaustion (429)
+    if (error.status === "RESOURCE_EXHAUSTED" || error.message?.includes("quota") || error.code === 429) {
+      throw new AIError("QUOTA_EXHAUSTED", 429, "RESOURCE_EXHAUSTED");
+    }
+
     if (error.message?.includes("Requested entity was not found")) {
-       // Potential race condition with key selection or invalid model name
        throw new AIError("Engine Handshake Failed: System recalibrating. Please try again in a moment.");
     }
     throw new AIError(error.message || "An unexpected error occurred in the Webvic Flow engine.");
@@ -35,7 +39,6 @@ const handleAIRequest = async <T>(requestPromise: Promise<T>): Promise<T> => {
 const extractJSON = (text: string | undefined) => {
   if (!text) return null;
   try {
-    // Robust cleaning to handle potential markdown code blocks or leading/trailing text
     const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
     const jsonMatch = cleaned.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
     if (jsonMatch) return JSON.parse(jsonMatch[0]);
@@ -48,7 +51,7 @@ const extractJSON = (text: string | undefined) => {
 
 export const validateSocialHandle = async (platformId: string, handle: string, brandName: string): Promise<SocialAccount> => {
   const ai = getAI();
-  const response = await handleAIRequest(ai.models.generateContent({
+  const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: {
       parts: [{
@@ -81,7 +84,6 @@ export const validateSocialHandle = async (platformId: string, handle: string, b
     platformId,
     handle,
     profileName: data.profileName,
-    // Use a more reliable avatar service than the retired Unsplash source
     avatarUrl: data.avatarUrl || `https://ui-avatars.com/api/?name=${handle || platformId}&background=random&color=fff&size=128`,
     followers: data.followers,
     tokenStatus: 'active',
@@ -113,7 +115,7 @@ export const researchCompany = async (url: string): Promise<{
   const ai = getAI();
   const sanitizedUrl = url.startsWith('http') ? url : `https://${url}`;
   
-  const response = await handleAIRequest(ai.models.generateContent({
+  const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview", 
     contents: {
       parts: [{
@@ -153,7 +155,8 @@ export const researchCompany = async (url: string): Promise<{
 export const analyzeAndGeneratePosts = async (
   url: string, 
   manualData?: { companyName: string; tagline: string },
-  updateProgress?: (status: string) => void
+  updateProgress?: (status: string) => void,
+  isAutoPilot: boolean = false
 ): Promise<GenerationResult & { logoUrl?: string }> => {
   const ai = getAI();
   const sanitizedUrl = url.startsWith('http') ? url : `https://${url}`;
@@ -169,19 +172,26 @@ export const analyzeAndGeneratePosts = async (
     RESEARCH DATA: ${brandIntel.summary}
   `;
 
-  if (updateProgress) updateProgress("Synthesizing multi-channel design strategies...");
+  if (updateProgress) updateProgress(isAutoPilot ? "Autopilot sequence initiated: Synthesizing weekly campaign..." : "Synthesizing multi-channel design strategies...");
 
-  const response = await handleAIRequest(ai.models.generateContent({
+  const quantityPerPlatform = isAutoPilot ? 6 : 2;
+  const schedulingRule = isAutoPilot 
+    ? "For each platform, generate 6 posts corresponding to Monday through Saturday. Assign each post a 'scheduledDay' (e.g., Monday) and a 'scheduledTime' (e.g., 09:00 AM)." 
+    : "Generate exactly TWO (2) UNIQUE POSTS for each platform.";
+
+  const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview", 
     contents: {
       parts: [{
-        text: `Based on this brand context: ${context}, generate exactly TWO (2) UNIQUE POSTS for each platform: linkedin, facebook, instagram, threads, twitter.
+        text: `Based on this brand context: ${context}, generate exactly ${quantityPerPlatform} UNIQUE POSTS for each platform: linkedin, facebook, instagram, threads, twitter.
         
+        ${schedulingRule}
+
         CRITICAL RULES:
         1. platformId MUST BE ALL LOWERCASE.
         2. content: Full professional marketing copy for the social media caption.
-        3. graphicHeadline: A SHORT, PUNCHY 3-8 WORD HEADLINE that summarizes the post content. This is for the VISUAL IMAGE OVERLAY.
-        4. visualPrompt: Describe an ATMOSPHERIC BACKGROUND DESIGN ASSET. Focus on: Clean professional layouts, 3D isometric metaphors, modern SaaS branding elements, and sleek gradients. DO NOT INCLUDE TEXT in the background asset.
+        3. graphicHeadline: A SHORT, PUNCHY 3-8 WORD HEADLINE for the VISUAL IMAGE OVERLAY.
+        4. visualPrompt: Describe an ATMOSPHERIC BACKGROUND DESIGN ASSET. Focus on clean professional layouts without text.
         
         Return response strictly as valid JSON.`
       }]
@@ -203,9 +213,11 @@ export const analyzeAndGeneratePosts = async (
                 graphicHeadline: { type: Type.STRING },
                 hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
                 suggestedTime: { type: Type.STRING },
+                scheduledTime: { type: Type.STRING },
+                scheduledDay: { type: Type.STRING },
                 visualPrompt: { type: Type.STRING }
               },
-              required: ["platformId", "content", "graphicHeadline", "hashtags", "suggestedTime", "visualPrompt"]
+              required: ["platformId", "content", "graphicHeadline", "hashtags", "visualPrompt"]
             }
           }
         },
@@ -221,7 +233,7 @@ export const analyzeAndGeneratePosts = async (
     logoPosition: 'top-left',
     logoX: 10,
     logoY: 10,
-    logoSize: 120, // Increased default logo size for better visibility
+    logoSize: 120,
     textPosition: 'center',
     textX: 50,
     textY: 50,
@@ -242,21 +254,21 @@ export const analyzeAndGeneratePosts = async (
     ...data, 
     sources: [], 
     researchSummary: brandIntel.summary, 
-    logoUrl: brandIntel.logoUrl 
+    logoUrl: brandIntel.logoUrl,
+    isAutoPilot
   };
 };
 
 export const generateImageForPost = async (visualPrompt: string): Promise<string> => {
   const ai = getAI();
   const masterPrompt = `
-    ACT AS A WORLD-CLASS GRAPHIC DESIGNER. 
-    TASK: Create a professional social media marketing BACKGROUND ASSET.
+    ACT AS A WORLD-CLASS GRAPHIC DESIGNER. Create a professional social media marketing BACKGROUND ASSET.
     VISUAL THEME: ${visualPrompt}. 
     STYLE: Modern, sleek, high-end corporate aesthetic. CINEMATIC. 4K detail.
-    CRITICAL INSTRUCTION: BACKGROUND ONLY. ABSOLUTELY NO TEXT, NO LOGOS, NO LETTERS.
+    CRITICAL INSTRUCTION: BACKGROUND ONLY. ABSOLUTELY NO TEXT.
   `.trim();
 
-  const response = await handleAIRequest(ai.models.generateContent({
+  const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: { parts: [{ text: masterPrompt }] },
     config: { 
@@ -266,7 +278,6 @@ export const generateImageForPost = async (visualPrompt: string): Promise<string
     }
   }));
 
-  // Robust part iteration to find the image data
   if (response.candidates?.[0]?.content?.parts) {
     for (const part of response.candidates[0].content.parts) {
       if (part.inlineData) {
@@ -279,7 +290,7 @@ export const generateImageForPost = async (visualPrompt: string): Promise<string
 
 export const conductMarketResearch = async (query: string): Promise<{ text: string; sources: ResearchSource[] }> => {
   const ai = getAI();
-  const response = await handleAIRequest(ai.models.generateContent({
+  const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: { parts: [{ text: `Conduct deep market intelligence research on: ${query}. Focus on recent trends and competitive benchmarks.` }] },
     config: { tools: [{ googleSearch: {} }] }
@@ -293,7 +304,7 @@ export const conductMarketResearch = async (query: string): Promise<{ text: stri
 
 export const generateVisualAnalytics = async (input: string): Promise<AnalyticsReport> => {
   const ai = getAI();
-  const response = await handleAIRequest(ai.models.generateContent({
+  const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: { parts: [{ text: `Process this narrative into structured analytics: ${input}` }] },
     config: {
@@ -316,7 +327,7 @@ export const generateVisualAnalytics = async (input: string): Promise<AnalyticsR
 
 export const generateMarketingContent = async (topic: string): Promise<ContentIdea[]> => {
   const ai = getAI();
-  const response = await handleAIRequest(ai.models.generateContent({
+  const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: { parts: [{ text: `Generate unique marketing architectures and high-fidelity campaign hooks for: ${topic}` }] },
     config: {

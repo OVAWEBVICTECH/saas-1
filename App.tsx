@@ -9,10 +9,42 @@ import VisualAnalytics from './components/VisualAnalytics';
 import ContentLab from './components/ContentLab';
 import { NavPage, SocialAccount } from './types';
 
+// Extend window object for AI Studio API
+// Defining the AIStudio interface to ensure it matches the expected global type name and structure
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    // Fixed: Made aistudio optional to match existing declarations in the environment and fix modifier mismatch error
+    aistudio?: AIStudio;
+  }
+}
+
 export default function App() {
   const [activePage, setActivePage] = useState<NavPage>(NavPage.DASHBOARD);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [connectedAccounts, setConnectedAccounts] = useState<SocialAccount[]>([]);
+  const [hasCustomKey, setHasCustomKey] = useState(false);
+
+  useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasCustomKey(hasKey);
+      }
+    };
+    checkKey();
+  }, []);
+
+  const handleOpenKeyManager = async () => {
+    if (window.aistudio) {
+      await window.aistudio.openSelectKey();
+      setHasCustomKey(true); // Assume success after triggering
+    }
+  };
 
   const handleConnect = (account: SocialAccount) => {
     setConnectedAccounts(prev => {
@@ -31,23 +63,19 @@ export default function App() {
       case NavPage.DASHBOARD:
         return <Dashboard connectedPlatforms={connectedAccounts.map(a => a.platformId)} />;
       case NavPage.GENERATE:
+      case NavPage.STUDIO_DESIGN:
         return (
-          <div className="space-y-16 md:space-y-32">
-            <PostCreator 
-              connectedAccounts={connectedAccounts} 
-              onNavigateToAuth={() => setActivePage(NavPage.CHANNELS)} 
-            />
-            <div className="border-t border-white/5 pt-16 md:pt-32">
-              <ContentLab />
-            </div>
-            <div className="border-t border-white/5 pt-16 md:pt-32">
-              <MarketResearch />
-            </div>
-            <div className="border-t border-white/5 pt-16 md:pt-32">
-              <VisualAnalytics />
-            </div>
-          </div>
+          <PostCreator 
+            connectedAccounts={connectedAccounts} 
+            onNavigateToAuth={() => setActivePage(NavPage.CHANNELS)} 
+          />
         );
+      case NavPage.STUDIO_IDEATION:
+        return <ContentLab />;
+      case NavPage.STUDIO_INTELLIGENCE:
+        return <MarketResearch />;
+      case NavPage.STUDIO_ANALYTICS:
+        return <VisualAnalytics />;
       case NavPage.CHANNELS:
         return (
           <SocialHub 
@@ -69,7 +97,7 @@ export default function App() {
       case NavPage.SETTINGS:
         return (
           <div className="py-12 max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-6 duration-700">
-            <h1 className="text-4xl md:text-5xl font-black text-white mb-12 tracking-tighter">System Configuration</h1>
+            <h1 className="text-4xl md:text-5xl font-black text-white mb-12 tracking-tighter text-glow">System Configuration</h1>
             <div className="bg-slate-900/40 border border-white/5 rounded-[40px] p-8 md:p-14 glass shadow-4xl relative overflow-hidden">
               <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
                 <i className="fas fa-gears text-[300px]"></i>
@@ -85,10 +113,26 @@ export default function App() {
                  <div className="p-8 bg-slate-950/40 rounded-3xl border border-white/5 flex items-center justify-between group hover:border-blue-500/30 transition-soft">
                    <div className="space-y-1">
                      <p className="text-sm font-black text-white uppercase tracking-widest">Kernel Version</p>
-                     <p className="text-xs text-slate-500 mono">2.0.4-flash-native-stable</p>
+                     <p className="text-xs text-slate-500 mono">2.5.0-native-audio-synced</p>
                    </div>
                    <div className="px-4 py-1.5 bg-blue-600/10 text-blue-500 rounded-full text-[10px] mono font-bold border border-blue-500/20">LATEST</div>
                  </div>
+
+                 <div className="p-8 bg-slate-950/40 rounded-3xl border border-white/5 flex items-center justify-between group hover:border-blue-500/30 transition-soft">
+                   <div className="space-y-1">
+                     <p className="text-sm font-black text-white uppercase tracking-widest">Engine Key</p>
+                     <p className="text-xs text-slate-500 mono">{hasCustomKey ? 'Using Personal Paid Project' : 'Using Global Shared Quota'}</p>
+                   </div>
+                   <button 
+                     onClick={handleOpenKeyManager}
+                     className="px-6 py-2 bg-blue-600 text-white rounded-xl text-[10px] mono font-black hover:bg-blue-500 transition-colors uppercase tracking-widest"
+                   >
+                     {hasCustomKey ? 'RE-SELECT' : 'MANAGE KEY'}
+                   </button>
+                 </div>
+                 <p className="text-[10px] text-slate-600 px-4 mt-4">
+                    If you encounter rate limits (Error 429), please <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 underline" rel="noopener noreferrer">select a personal key from a paid GCP project</a>.
+                 </p>
               </div>
             </div>
           </div>
@@ -123,19 +167,22 @@ export default function App() {
             </button>
             <div className="flex items-center gap-3">
               <span className="hidden sm:inline text-[10px] mono font-bold uppercase tracking-[0.3em] text-slate-600">Infrastructure /</span>
-              <span className="text-sm font-black uppercase tracking-[0.15em] text-blue-500 drop-shadow-[0_0_12px_rgba(59,130,246,0.4)] transition-soft">{activePage}</span>
+              <span className="text-sm font-black uppercase tracking-[0.15em] text-blue-500 drop-shadow-[0_0_12px_rgba(59,130,246,0.4)] transition-soft">{activePage.split('_').join(' ')}</span>
             </div>
           </div>
           
           <div className="flex items-center gap-5">
-            <div className="hidden md:flex items-center gap-3 bg-slate-950/60 border border-white/5 rounded-full px-6 py-2.5 glass shadow-inner">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] animate-pulse"></span>
-              <span className="text-[10px] mono font-black uppercase tracking-[0.2em] text-slate-400">
-                Core: Active
-              </span>
-            </div>
             <button 
-              onClick={() => setActivePage(NavPage.GENERATE)}
+              onClick={handleOpenKeyManager}
+              className={`hidden md:flex items-center gap-3 ${hasCustomKey ? 'bg-indigo-900/40 border-indigo-500/30' : 'bg-slate-950/60 border-white/5'} border rounded-full px-6 py-2.5 glass shadow-inner transition-soft group hover:border-blue-500/40`}
+            >
+              <span className={`w-2 h-2 rounded-full ${hasCustomKey ? 'bg-indigo-500' : 'bg-emerald-500'} shadow-[0_0_15px_rgba(16,185,129,0.8)] animate-pulse`}></span>
+              <span className="text-[10px] mono font-black uppercase tracking-[0.2em] text-slate-400 group-hover:text-white transition-colors">
+                {hasCustomKey ? 'PRO KEY' : 'Core: Active'}
+              </span>
+            </button>
+            <button 
+              onClick={() => setActivePage(NavPage.STUDIO_DESIGN)}
               className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-2xl shadow-blue-600/30 hover:shadow-blue-600/50 hover:scale-105 active:scale-95 transition-soft"
             >
               <i className="fas fa-bolt-lightning text-lg"></i>
