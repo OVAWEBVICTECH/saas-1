@@ -11,12 +11,23 @@ const PLATFORMS: SocialPlatform[] = [
   { id: 'twitter', name: 'Twitter / X', icon: 'fa-x-twitter', color: 'bg-black', connected: false },
 ];
 
+const ALGO_TIMES: Record<string, string> = {
+  linkedin: '10:15 AM',
+  facebook: '01:30 PM',
+  instagram: '06:45 PM',
+  threads: '08:00 AM',
+  twitter: '12:00 PM'
+};
+
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 interface PostCreatorProps {
   connectedAccounts: SocialAccount[];
   onNavigateToAuth: () => void;
+  onCampaignReady?: (result: GenerationResult) => void;
 }
 
-const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigateToAuth }) => {
+const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigateToAuth, onCampaignReady }) => {
   const [url, setUrl] = useState('');
   const [manualName, setManualName] = useState('');
   const [manualTagline, setManualTagline] = useState('');
@@ -32,6 +43,9 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
   const [autoPilotEnabled, setAutoPilotEnabled] = useState(false);
   const [showAutoPilotConfirm, setShowAutoPilotConfirm] = useState(false);
   
+  // Scheduling UI State
+  const [schedulingIdx, setSchedulingIdx] = useState<number | null>(null);
+
   const [dragItem, setDragItem] = useState<{ type: 'logo' | 'text'; postIdx: number } | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,11 +74,12 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
         autoPilotEnabled
       );
       setResult(data);
+      if (onCampaignReady) onCampaignReady(data);
+
       if (data.logoUrl && !logo) setLogo(data.logoUrl);
       if (data.companyName && !manualName) setManualName(data.companyName);
       if (data.tagline && !manualTagline) setManualTagline(data.tagline);
 
-      // In Auto Pilot mode, we automatically synthesize visuals for ALL generated posts
       if (autoPilotEnabled) {
         setGenerationStep("Autopilot: Generating visual base for weekly campaign...");
         const synthesisPromises = data.posts.map((p, idx) => 
@@ -72,7 +87,6 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
         );
         await Promise.all(synthesisPromises);
 
-        // After visuals are ready, simulate auto-posting for all connected channels
         setGenerationStep("Autopilot: Deploying scheduled campaign to linked channels...");
         for (let i = 0; i < data.posts.length; i++) {
           const post = data.posts[i];
@@ -100,12 +114,32 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
     }
   };
 
+  const handleSchedulePost = (postIdx: number, day: string) => {
+    if (!result) return;
+    const platformId = result.posts[postIdx].platformId;
+    const autoTime = ALGO_TIMES[platformId] || '09:00 AM';
+
+    setResult(prev => {
+      if (!prev) return null;
+      const updatedPosts = [...prev.posts];
+      updatedPosts[postIdx] = {
+        ...updatedPosts[postIdx],
+        scheduledDay: day,
+        scheduledTime: autoTime,
+        status: 'scheduled'
+      };
+      const nextResult = { ...prev, posts: updatedPosts };
+      if (onCampaignReady) onCampaignReady(nextResult);
+      return nextResult;
+    });
+    setSchedulingIdx(null);
+  };
+
   const deployToProduction = async (postIdx: number, currentResult?: GenerationResult) => {
     const activeResult = currentResult || result;
     if (!activeResult) return;
     const post = activeResult.posts[postIdx];
 
-    // Check if channel is connected for manual deployment
     const isConnected = connectedAccounts.some(acc => acc.platformId === post.platformId);
     if (!isConnected) {
       alert(`Channel for ${post.platformId} not linked. Please connect it in the Channels tab.`);
@@ -113,7 +147,6 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
       return;
     }
     
-    // Mark as posting
     setResult(prev => {
       const target = prev || activeResult;
       const updated = [...target.posts];
@@ -250,7 +283,9 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
         const target = prev || activeResult;
         const updatedPosts = [...target!.posts];
         updatedPosts[postIdx].visualUrl = imageUrl;
-        return { ...target!, posts: updatedPosts };
+        const nextResult = { ...target!, posts: updatedPosts };
+        if (onCampaignReady) onCampaignReady(nextResult);
+        return nextResult;
       });
     } catch (err: any) {
        if (err.message === "QUOTA_EXHAUSTED" || err.code === 429) {
@@ -298,16 +333,14 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
 
   return (
     <div className="py-12 md:py-24 animate-in fade-in slide-in-from-bottom-6 duration-1000">
-      {/* Dynamic Header & Identity Engine */}
       <div className="flex flex-col xl:flex-row items-center justify-between gap-12 mb-20 md:mb-32">
         <div className="max-w-xl space-y-4 text-center xl:text-left">
-          <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter leading-[0.9] text-fluid-h1 text-glow">
+          <h1 className="text-6xl md:text-8xl font-black text-white tracking-tighter leading-[0.9] text-glow">
             Design <span className="text-blue-500 italic">Studio</span>
           </h1>
           <p className="text-slate-500 text-lg md:text-xl font-medium max-w-lg">Professional layout engine for multi-channel brand synthesis.</p>
         </div>
 
-        {/* Brand Infrastructure Control Bar */}
         <div className="w-full xl:flex-1 glass bento-card p-4 md:p-6 shadow-5xl ring-1 ring-white/10 flex flex-col md:flex-row items-center gap-6">
           <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
             <div className="space-y-2">
@@ -346,7 +379,6 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
         </div>
       </div>
 
-      {/* Primary Action Sequence */}
       <div className="mb-24 md:mb-40 space-y-8">
         <form onSubmit={handleGenerate} className="glass p-3 md:p-4 rounded-[48px] flex flex-col md:flex-row items-center gap-4 shadow-5xl max-w-7xl mx-auto ring-1 ring-white/10 group focus-within:ring-blue-500/20">
           <div className="flex-1 w-full relative">
@@ -359,7 +391,6 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
           </div>
           
           <div className="flex items-center gap-4 w-full md:w-auto">
-             {/* Auto Pilot Toggle */}
              <button 
                 type="button"
                 onClick={toggleAutoPilot}
@@ -386,7 +417,6 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
         )}
       </div>
 
-      {/* Quota Exhausted Alert */}
       {isQuotaError && (
         <div className="mb-20 animate-in slide-in-from-top-4 duration-500">
           <div className="glass-dark border-2 border-rose-500/30 rounded-[40px] p-8 md:p-12 flex flex-col md:flex-row items-center gap-8 shadow-4xl ring-1 ring-rose-500/10">
@@ -420,17 +450,8 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
         </div>
       )}
 
-      {error && !isQuotaError && (
-        <div className="mb-20 p-8 glass border-2 border-rose-500/20 rounded-[36px] text-center">
-           <p className="text-rose-500 font-bold uppercase tracking-widest mb-4">Pipeline Interruption</p>
-           <p className="text-slate-300 font-medium">{error}</p>
-        </div>
-      )}
-
-      {/* Editor Hub */}
       {result && (
         <div className="space-y-16 md:space-y-32">
-          {/* Channel Selectors */}
           <div className="flex items-center justify-center sticky top-[100px] z-[60] pointer-events-none">
             <div className="glass p-2.5 rounded-full flex flex-wrap justify-center gap-2 shadow-5xl pointer-events-auto ring-1 ring-white/10 backdrop-blur-3xl">
               {PLATFORMS.map(p => {
@@ -452,18 +473,39 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 md:gap-24">
             {result.posts.map((post, postIdx) => (
               post.platformId === activeTab && (
-                <div key={`${post.platformId}-${postIdx}`} className="glass bento-card p-10 md:p-16 lg:p-20 space-y-12 md:space-y-20 group hover:border-blue-500/20 transition-all duration-700 flex flex-col shadow-6xl ring-1 ring-white/5">
+                <div key={`${post.platformId}-${postIdx}`} className="glass bento-card p-10 md:p-16 lg:p-20 space-y-12 md:space-y-20 group hover:border-blue-500/20 transition-all duration-700 flex flex-col shadow-6xl ring-1 ring-white/5 relative">
+                  
+                  {/* Internal Day Selection Overlay */}
+                  {schedulingIdx === postIdx && (
+                    <div className="absolute inset-0 z-50 glass backdrop-blur-3xl rounded-[36px] p-10 flex flex-col items-center justify-center animate-in zoom-in-95 duration-300">
+                      <button onClick={() => setSchedulingIdx(null)} className="absolute top-8 right-8 text-slate-500 hover:text-white"><i className="fas fa-times"></i></button>
+                      <h3 className="text-2xl font-black text-white mb-8 tracking-tighter uppercase italic">Target Day</h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full max-w-md">
+                        {DAYS.map(day => (
+                          <button 
+                            key={day} 
+                            onClick={() => handleSchedulePost(postIdx, day)}
+                            className="py-4 bg-slate-950/60 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white hover:border-blue-500/50 transition-all active:scale-95"
+                          >
+                            {day.substring(0, 3)}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-8 text-[9px] mono font-bold text-blue-500 uppercase tracking-widest text-center">Engine will auto-assign Algorithmic Peak Time: {ALGO_TIMES[post.platformId]}</p>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-6">
                       <div className="w-16 h-16 bg-slate-950 rounded-[22px] flex items-center justify-center text-blue-500 font-black border border-white/5 shadow-inner italic text-2xl">0{postIdx + 1}</div>
                       <div className="space-y-1">
                         <h4 className="text-[10px] font-black text-white uppercase tracking-[0.3em]">
-                          {post.scheduledDay ? `${post.scheduledDay} Deployment` : 'Studio Pipeline'}
+                          {post.scheduledDay ? `${post.scheduledDay} @ ${post.scheduledTime}` : 'Studio Pipeline'}
                         </h4>
                         <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${post.status === 'posted' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-blue-500 shadow-[0_0_10px_#3b82f6]'} animate-pulse`}></span>
+                          <span className={`w-2 h-2 rounded-full ${post.status === 'posted' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : post.status === 'scheduled' ? 'bg-blue-500 shadow-[0_0_10px_#3b82f6]' : 'bg-slate-700'} animate-pulse`}></span>
                           <p className="text-[9px] mono font-bold text-slate-600 uppercase tracking-widest">
-                            {post.status === 'posted' ? 'Successfully Propagated' : post.scheduledTime ? `Scheduled: ${post.scheduledTime}` : 'Active Synthesis'}
+                            {post.status === 'posted' ? 'Live on Production' : post.status === 'scheduled' ? 'Sync to Planner' : 'Active Synthesis'}
                           </p>
                         </div>
                       </div>
@@ -475,19 +517,27 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
                         </a>
                       )}
                       
-                      {/* Manual Deployment (Send) Icon */}
                       {!autoPilotEnabled && (
-                        <button 
-                          onClick={() => deployToProduction(postIdx)}
-                          disabled={post.status === 'posting' || post.status === 'posted' || !post.visualUrl}
-                          className={`w-16 h-16 md:w-20 md:h-20 rounded-[26px] border flex items-center justify-center transition-soft shadow-2xl ${
-                            post.status === 'posted'
-                              ? 'bg-emerald-600/10 border-emerald-500/20 text-emerald-500'
-                              : 'bg-white/5 border-white/10 text-slate-500 hover:text-white hover:bg-blue-600/10'
-                          }`}
-                        >
-                          <i className={`fas ${post.status === 'posting' ? 'fa-spinner fa-spin' : post.status === 'posted' ? 'fa-check' : 'fa-paper-plane'} text-xl`}></i>
-                        </button>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => setSchedulingIdx(postIdx)}
+                            className="w-16 h-16 md:w-20 md:h-20 rounded-[26px] bg-indigo-600/10 border border-indigo-500/20 text-indigo-500 hover:bg-indigo-600 hover:text-white transition-soft shadow-2xl"
+                            title="Schedule to Planner"
+                          >
+                            <i className="fas fa-calendar-plus text-xl"></i>
+                          </button>
+                          <button 
+                            onClick={() => deployToProduction(postIdx)}
+                            disabled={post.status === 'posting' || post.status === 'posted' || !post.visualUrl}
+                            className={`w-16 h-16 md:w-20 md:h-20 rounded-[26px] border flex items-center justify-center transition-soft shadow-2xl ${
+                              post.status === 'posted'
+                                ? 'bg-emerald-600/10 border-emerald-500/20 text-emerald-500'
+                                : 'bg-white/5 border-white/10 text-slate-500 hover:text-white hover:bg-blue-600/10'
+                            }`}
+                          >
+                            <i className={`fas ${post.status === 'posting' ? 'fa-spinner fa-spin' : post.status === 'posted' ? 'fa-check' : 'fa-paper-plane'} text-xl`}></i>
+                          </button>
+                        </div>
                       )}
 
                       <button 
@@ -557,7 +607,6 @@ const PostCreator: React.FC<PostCreatorProps> = ({ connectedAccounts, onNavigate
         </div>
       )}
 
-      {/* Auto Pilot Confirmation Modal */}
       {showAutoPilotConfirm && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-300">
           <div className="bg-slate-900 border border-white/10 rounded-[48px] p-10 md:p-16 max-w-xl w-full shadow-6xl glass relative overflow-hidden text-center">

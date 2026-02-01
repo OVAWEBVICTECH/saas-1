@@ -1,14 +1,15 @@
 
 export enum NavPage {
   DASHBOARD = 'dashboard',
-  GENERATE = 'generate', // This will now serve as the parent or Design Studio
+  GENERATE = 'generate',
   STUDIO_DESIGN = 'studio_design',
   STUDIO_IDEATION = 'studio_ideation',
   STUDIO_INTELLIGENCE = 'studio_intelligence',
   STUDIO_ANALYTICS = 'studio_analytics',
   CHANNELS = 'channels',
   HISTORY = 'history',
-  SETTINGS = 'settings'
+  SETTINGS = 'settings',
+  SCHEDULE = 'schedule'
 }
 
 export interface SocialAccount {
@@ -45,14 +46,14 @@ export interface DesignConfig {
 export interface SocialPost {
   platformId: string;
   content: string;
-  graphicHeadline: string; // New: Short punchy text for image overlay
+  graphicHeadline: string;
   hashtags: string[];
   status: 'draft' | 'posting' | 'posted' | 'failed' | 'scheduled';
   deploymentStage?: 'handshake' | 'upload' | 'propagate' | 'verify';
   timestamp?: string;
   suggestedTime?: string;
   scheduledTime?: string;
-  scheduledDay?: string; // New: Monday, Tuesday, etc.
+  scheduledDay?: string;
   visualUrl?: string;
   visualPrompt?: string;
   liveUrl?: string;
@@ -67,7 +68,7 @@ export interface GenerationResult {
   posts: SocialPost[];
   sources?: ResearchSource[];
   researchSummary?: string;
-  isAutoPilot?: boolean; // New: Flag for auto-pilot generation
+  isAutoPilot?: boolean;
 }
 
 export interface ResearchSource {

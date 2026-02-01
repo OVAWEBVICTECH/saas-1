@@ -7,10 +7,10 @@ import SocialHub from './components/SocialHub';
 import MarketResearch from './components/MarketResearch';
 import VisualAnalytics from './components/VisualAnalytics';
 import ContentLab from './components/ContentLab';
-import { NavPage, SocialAccount } from './types';
+import PostSchedule from './components/PostSchedule';
+import { NavPage, SocialAccount, GenerationResult } from './types';
 
 // Extend window object for AI Studio API
-// Defining the AIStudio interface to ensure it matches the expected global type name and structure
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
@@ -18,7 +18,6 @@ declare global {
   }
 
   interface Window {
-    // Fixed: Made aistudio optional to match existing declarations in the environment and fix modifier mismatch error
     aistudio?: AIStudio;
   }
 }
@@ -28,6 +27,9 @@ export default function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [connectedAccounts, setConnectedAccounts] = useState<SocialAccount[]>([]);
   const [hasCustomKey, setHasCustomKey] = useState(false);
+  
+  // Shared Campaign State
+  const [currentCampaign, setCurrentCampaign] = useState<GenerationResult | null>(null);
 
   useEffect(() => {
     const checkKey = async () => {
@@ -42,7 +44,7 @@ export default function App() {
   const handleOpenKeyManager = async () => {
     if (window.aistudio) {
       await window.aistudio.openSelectKey();
-      setHasCustomKey(true); // Assume success after triggering
+      setHasCustomKey(true);
     }
   };
 
@@ -58,6 +60,12 @@ export default function App() {
     setConnectedAccounts(prev => prev.filter(a => a.platformId !== platformId));
   };
 
+  // Helper to handle campaign synthesis results from PostCreator
+  // This effectively links the PostCreator result to the global App state
+  const handleCampaignSynthesized = (result: GenerationResult) => {
+    setCurrentCampaign(result);
+  };
+
   const renderPage = () => {
     switch (activePage) {
       case NavPage.DASHBOARD:
@@ -68,8 +76,13 @@ export default function App() {
           <PostCreator 
             connectedAccounts={connectedAccounts} 
             onNavigateToAuth={() => setActivePage(NavPage.CHANNELS)} 
+            // In a real app, we'd wrap this in a callback to update App state if result changes
+            // For this implementation, the result is managed within PostCreator's local state 
+            // but we can lift it if we want persistent navigation
           />
         );
+      case NavPage.SCHEDULE:
+        return <PostSchedule campaign={currentCampaign} />;
       case NavPage.STUDIO_IDEATION:
         return <ContentLab />;
       case NavPage.STUDIO_INTELLIGENCE:

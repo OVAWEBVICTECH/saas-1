@@ -26,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isOpen, on
         { id: NavPage.STUDIO_ANALYTICS, label: 'Neural Analytics', icon: 'fa-chart-pie-simple' },
       ]
     },
+    { id: NavPage.SCHEDULE, label: 'Planner', icon: 'fa-calendar-clock' },
     { id: NavPage.CHANNELS, label: 'Channels', icon: 'fa-link' },
     { id: NavPage.HISTORY, label: 'Archive', icon: 'fa-box-archive' },
     { id: NavPage.SETTINGS, label: 'System', icon: 'fa-sliders' },
@@ -121,7 +122,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isOpen, on
 
         {/* Account Footer */}
         <div className="p-8 lg:p-10 mt-auto shrink-0 pb-32 lg:pb-10">
-          <div className="glass-dark rounded-[36px] p-6 border border-white/10 shadow-4xl ring-1 ring-white/5">
+          <div className="glass rounded-[36px] p-6 border border-white/10 shadow-4xl ring-1 ring-white/5">
             <div className="flex items-center gap-4 mb-6">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[10px] font-black shadow-2xl border border-white/10 text-white">VO</div>
               <div className="flex-1 min-w-0">
@@ -144,11 +145,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage, isOpen, on
               key={item.id}
               onClick={() => {
                 if (item.subItems) {
-                   // Mobile nav logic: if it has subitems, clicking it goes to the first subitem if not already in studio
                    if (!isStudioActive) {
                      handleNavClick(NavPage.STUDIO_DESIGN);
                    } else {
-                     onOpen && onOpen(); // Open sidebar to show sub-options
+                     onOpen && onOpen();
                    }
                 } else {
                   handleNavClick(item.id);
