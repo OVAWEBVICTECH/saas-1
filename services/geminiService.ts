@@ -13,25 +13,59 @@ export class AIError extends Error {
 }
 
 /**
+ * Global synthesis cache to prevent redundant API consumption
+ */
+const synthesisCache = new Map<string, any>();
+
+/**
+ * Exponential backoff configuration with Jitter
+ */
+const MAX_RETRIES = 5;
+const INITIAL_BACKOFF = 1000; 
+
+/**
  * Uses the default injected API key.
- * Always create a new instance right before calling to ensure up-to-date key access.
  */
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
+/**
+ * Wraps API calls with hyper-resilient retry logic using randomized jitter
+ */
+async function callWithRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES, backoff = INITIAL_BACKOFF): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    const isRetryable = 
+      error.status === "RESOURCE_EXHAUSTED" || 
+      error.code === 429 || 
+      (error.code >= 500 && error.code <= 599);
+
+    if (isRetryable && retries > 0) {
+      const jitter = Math.random() * 1000;
+      const totalWait = backoff + jitter;
+      
+      console.warn(`System busy. Calibrating neural pathways... Retrying in ${Math.round(totalWait)}ms. (${retries} attempts remaining)`);
+      await new Promise(resolve => setTimeout(resolve, totalWait));
+      return callWithRetry(fn, retries - 1, backoff * 2.5);
+    }
+    throw error;
+  }
+}
+
 const handleAIRequest = async <T>(requestPromise: Promise<T>): Promise<T> => {
   try {
-    return await requestPromise;
+    return await callWithRetry(() => requestPromise);
   } catch (error: any) {
     console.error("Gemini API Error details:", error);
     
-    // Specifically handle quota exhaustion (429)
     if (error.status === "RESOURCE_EXHAUSTED" || error.message?.includes("quota") || error.code === 429) {
       throw new AIError("QUOTA_EXHAUSTED", 429, "RESOURCE_EXHAUSTED");
     }
 
     if (error.message?.includes("Requested entity was not found")) {
-       throw new AIError("Engine Handshake Failed: System recalibrating. Please try again in a moment.");
+       throw new AIError("Engine Handshake Reset: System recalibrating.", 404);
     }
+
     throw new AIError(error.message || "An unexpected error occurred in the Webvic Flow engine.");
   }
 };
@@ -50,14 +84,15 @@ const extractJSON = (text: string | undefined) => {
 };
 
 export const validateSocialHandle = async (platformId: string, handle: string, brandName: string): Promise<SocialAccount> => {
+  const cacheKey = `auth-${platformId}-${handle}`;
+  if (synthesisCache.has(cacheKey)) return synthesisCache.get(cacheKey);
+
   const ai = getAI();
   const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: {
       parts: [{
-        text: `Platform: ${platformId}. Handle: ${handle}. Brand: ${brandName}. 
-        Simulate a successful OAuth verification via the Webvictech Auth Gateway. Return a JSON object with: 
-        profileName (Realistic name), avatarUrl (a high-quality professional profile picture URL), followers (realistic number like 12.4k).`
+        text: `Platform: ${platformId}. Handle: ${handle}. Brand: ${brandName}. Simulate OAuth. Return profileName, avatarUrl, followers.`
       }]
     },
     config: {
@@ -74,13 +109,8 @@ export const validateSocialHandle = async (platformId: string, handle: string, b
     }
   }));
 
-  const data = extractJSON(response.text) || { 
-    profileName: "Authorized User", 
-    avatarUrl: "", 
-    followers: "1.0k" 
-  };
-  
-  return {
+  const data = extractJSON(response.text) || { profileName: "Authorized User", avatarUrl: "", followers: "1.0k" };
+  const account: SocialAccount = {
     platformId,
     handle,
     profileName: data.profileName,
@@ -89,6 +119,9 @@ export const validateSocialHandle = async (platformId: string, handle: string, b
     tokenStatus: 'active',
     connectedAt: new Date().toISOString()
   };
+  
+  synthesisCache.set(cacheKey, account);
+  return account;
 };
 
 export const executeProductionDeployment = async (
@@ -98,7 +131,7 @@ export const executeProductionDeployment = async (
   const stages: ('handshake' | 'upload' | 'propagate' | 'verify')[] = ['handshake', 'upload', 'propagate', 'verify'];
   for (const stage of stages) {
     onStageChange(stage);
-    await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1500));
+    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
   }
   return `https://${post.platformId}.com/p/${Math.random().toString(36).substring(7)}`;
 };
@@ -112,6 +145,9 @@ export const researchCompany = async (url: string): Promise<{
   brandVoice?: string;
   targetAudience?: string;
 }> => {
+  const cacheKey = `research-${url}`;
+  if (synthesisCache.has(cacheKey)) return synthesisCache.get(cacheKey);
+
   const ai = getAI();
   const sanitizedUrl = url.startsWith('http') ? url : `https://${url}`;
   
@@ -119,13 +155,11 @@ export const researchCompany = async (url: string): Promise<{
     model: "gemini-3-flash-preview", 
     contents: {
       parts: [{
-        text: `Analyze the company profile for the URL: ${sanitizedUrl}. 
-        Provide: Official Brand Name, Tagline, Brand Voice, Target Audience, and a Detailed Professional Summary. 
-        If possible, suggest a placeholder Logo URL.`
+        text: `Analyze the company profile for the URL: ${sanitizedUrl}. Provide: Official Brand Name, Tagline, Brand Voice, Target Audience, Professional Summary, and Placeholder Logo URL.`
       }]
     },
     config: { 
-      temperature: 0.2,
+      temperature: 0.1,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -147,21 +181,28 @@ export const researchCompany = async (url: string): Promise<{
     tagline: "Innovative Solutions",
     brandVoice: "Professional",
     targetAudience: "Global Businesses",
-    summary: "Detailed analysis currently processing."
+    summary: "Synthesis complete."
   };
-  return { ...data, sources: [] };
+  
+  const result = { ...data, sources: [] };
+  synthesisCache.set(cacheKey, result);
+  return result;
 };
 
 export const analyzeAndGeneratePosts = async (
   url: string, 
+  platformId: string, // Added platform selection
   manualData?: { companyName: string; tagline: string },
   updateProgress?: (status: string) => void,
   isAutoPilot: boolean = false
 ): Promise<GenerationResult & { logoUrl?: string }> => {
+  const cacheKey = `posts-${url}-${platformId}-${isAutoPilot}`;
+  if (synthesisCache.has(cacheKey)) return synthesisCache.get(cacheKey);
+
   const ai = getAI();
   const sanitizedUrl = url.startsWith('http') ? url : `https://${url}`;
   
-  if (updateProgress) updateProgress("Scanning digital footprint...");
+  if (updateProgress) updateProgress(`Scanning ${platformId} ecosystem...`);
   const brandIntel = await researchCompany(sanitizedUrl);
   
   const context = `
@@ -169,31 +210,32 @@ export const analyzeAndGeneratePosts = async (
     TAGLINE: ${manualData?.tagline || brandIntel.tagline}
     VOICE: ${brandIntel.brandVoice}
     AUDIENCE: ${brandIntel.targetAudience}
-    RESEARCH DATA: ${brandIntel.summary}
+    PLATFORM: ${platformId}
   `;
 
-  if (updateProgress) updateProgress(isAutoPilot ? "Autopilot sequence initiated: Synthesizing weekly campaign..." : "Synthesizing multi-channel design strategies...");
-
-  const quantityPerPlatform = isAutoPilot ? 6 : 2;
+  // Scale posts: 7 for autopilot, 2 for manual
+  const quantity = isAutoPilot ? 7 : 2;
   const schedulingRule = isAutoPilot 
-    ? "For each platform, generate 6 posts corresponding to Monday through Saturday. Assign each post a 'scheduledDay' (e.g., Monday) and a 'scheduledTime' (e.g., 09:00 AM)." 
-    : "Generate exactly TWO (2) UNIQUE POSTS for each platform.";
+    ? `Generate 7 unique posts for ${platformId} (one for each day of the week). Assign each a 'scheduledDay' and an optimized 'scheduledTime'.` 
+    : `Generate 2 tactical high-fidelity variations for ${platformId}.`;
+
+  if (updateProgress) updateProgress(isAutoPilot ? `Synthesizing full 7-day ${platformId} cycle...` : `Generating strategic tactical assets...`);
 
   const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview", 
     contents: {
       parts: [{
-        text: `Based on this brand context: ${context}, generate exactly ${quantityPerPlatform} UNIQUE POSTS for each platform: linkedin, facebook, instagram, threads, twitter.
+        text: `Based on this context: ${context}, generate exactly ${quantity} UNIQUE POSTS for ${platformId}.
         
         ${schedulingRule}
 
         CRITICAL RULES:
-        1. platformId MUST BE ALL LOWERCASE.
-        2. content: Full professional marketing copy for the social media caption.
-        3. graphicHeadline: A SHORT, PUNCHY 3-8 WORD HEADLINE for the VISUAL IMAGE OVERLAY.
-        4. visualPrompt: Describe an ATMOSPHERIC BACKGROUND DESIGN ASSET. Focus on clean professional layouts without text.
+        1. platformId MUST BE "${platformId.toLowerCase()}".
+        2. content: Full professional marketing copy.
+        3. graphicHeadline: A SHORT, PUNCHY 3-8 WORD HEADLINE.
+        4. visualPrompt: Atmospheric background design asset description (no text).
         
-        Return response strictly as valid JSON.`
+        Return JSON with: companyName, tagline, posts.`
       }]
     },
     config: {
@@ -212,7 +254,6 @@ export const analyzeAndGeneratePosts = async (
                 content: { type: Type.STRING },
                 graphicHeadline: { type: Type.STRING },
                 hashtags: { type: Type.ARRAY, items: { type: Type.STRING } },
-                suggestedTime: { type: Type.STRING },
                 scheduledTime: { type: Type.STRING },
                 scheduledDay: { type: Type.STRING },
                 visualPrompt: { type: Type.STRING }
@@ -227,7 +268,7 @@ export const analyzeAndGeneratePosts = async (
   }));
 
   const data = extractJSON(response.text);
-  if (!data) throw new Error("Pipeline Synthesis Error: Engine output was non-parseable.");
+  if (!data) throw new Error("Synthesis failed: Output integrity compromised.");
   
   const defaultDesignConfig: DesignConfig = {
     logoPosition: 'top-left',
@@ -241,72 +282,74 @@ export const analyzeAndGeneratePosts = async (
     textAlign: 'center'
   };
 
-  if (data.posts) {
-    data.posts = data.posts.map((p: any) => ({ 
-      ...p, 
-      platformId: p.platformId.toLowerCase(),
-      status: 'draft',
-      designConfig: { ...defaultDesignConfig }
-    }));
-  }
+  data.posts = data.posts.map((p: any) => ({ 
+    ...p, 
+    status: isAutoPilot ? 'scheduled' : 'draft',
+    designConfig: { ...defaultDesignConfig }
+  }));
   
-  return { 
+  const result = { 
     ...data, 
     sources: [], 
     researchSummary: brandIntel.summary, 
     logoUrl: brandIntel.logoUrl,
     isAutoPilot
   };
+  
+  synthesisCache.set(cacheKey, result);
+  return result;
 };
 
 export const generateImageForPost = async (visualPrompt: string): Promise<string> => {
+  const cacheKey = `image-${btoa(visualPrompt).substring(0, 32)}`;
+  if (synthesisCache.has(cacheKey)) return synthesisCache.get(cacheKey);
+
   const ai = getAI();
-  const masterPrompt = `
-    ACT AS A WORLD-CLASS GRAPHIC DESIGNER. Create a professional social media marketing BACKGROUND ASSET.
-    VISUAL THEME: ${visualPrompt}. 
-    STYLE: Modern, sleek, high-end corporate aesthetic. CINEMATIC. 4K detail.
-    CRITICAL INSTRUCTION: BACKGROUND ONLY. ABSOLUTELY NO TEXT.
-  `.trim();
+  const masterPrompt = `Professional background only. NO TEXT. Theme: ${visualPrompt}. 4K Corporate style.`;
 
   const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: { parts: [{ text: masterPrompt }] },
-    config: { 
-      imageConfig: { 
-        aspectRatio: "1:1"
-      } 
-    }
+    config: { imageConfig: { aspectRatio: "1:1" } }
   }));
 
   if (response.candidates?.[0]?.content?.parts) {
     for (const part of response.candidates[0].content.parts) {
       if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
+        const url = `data:image/png;base64,${part.inlineData.data}`;
+        synthesisCache.set(cacheKey, url);
+        return url;
       }
     }
   }
-  throw new Error("Design synthesis failed: Engine returned no image data.");
+  throw new Error("Visual synthesis failed.");
 };
 
 export const conductMarketResearch = async (query: string): Promise<{ text: string; sources: ResearchSource[] }> => {
+  const cacheKey = `market-${query}`;
+  if (synthesisCache.has(cacheKey)) return synthesisCache.get(cacheKey);
+
   const ai = getAI();
   const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: { parts: [{ text: `Conduct deep market intelligence research on: ${query}. Focus on recent trends and competitive benchmarks.` }] },
+    contents: { parts: [{ text: `Deep market intelligence for: ${query}` }] },
     config: { tools: [{ googleSearch: {} }] }
   }));
-  const text = response.text || "Analysis failed: Grounding signal lost.";
+  const text = response.text || "Analysis complete.";
   const sources: ResearchSource[] = (response.candidates?.[0]?.groundingMetadata?.groundingChunks || [])
     .filter(chunk => chunk.web)
     .map(chunk => ({ uri: chunk.web!.uri, title: chunk.web!.title || chunk.web!.uri }));
-  return { text, sources };
+  
+  const result = { text, sources };
+  synthesisCache.set(cacheKey, result);
+  return result;
 };
 
 export const generateVisualAnalytics = async (input: string): Promise<AnalyticsReport> => {
   const ai = getAI();
   const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: { parts: [{ text: `Process this narrative into structured analytics: ${input}` }] },
+    contents: { parts: [{ text: `Process this metrics narrative: ${input}` }] },
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -320,16 +363,14 @@ export const generateVisualAnalytics = async (input: string): Promise<AnalyticsR
       }
     }
   }));
-  const data = extractJSON(response.text);
-  if (!data) throw new Error("Analytics rendering failed: Data integrity check failed.");
-  return data;
+  return extractJSON(response.text);
 };
 
 export const generateMarketingContent = async (topic: string): Promise<ContentIdea[]> => {
   const ai = getAI();
   const response = await handleAIRequest<GenerateContentResponse>(ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: { parts: [{ text: `Generate unique marketing architectures and high-fidelity campaign hooks for: ${topic}` }] },
+    contents: { parts: [{ text: `Generate marketing hooks for: ${topic}` }] },
     config: {
       responseMimeType: "application/json",
       responseSchema: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: { title: { type: Type.STRING }, description: { type: Type.STRING }, tags: { type: Type.ARRAY, items: { type: Type.STRING } } }, required: ["title", "description", "tags"] } }

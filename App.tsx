@@ -61,7 +61,6 @@ export default function App() {
   };
 
   // Helper to handle campaign synthesis results from PostCreator
-  // This effectively links the PostCreator result to the global App state
   const handleCampaignSynthesized = (result: GenerationResult) => {
     setCurrentCampaign(result);
   };
@@ -76,13 +75,19 @@ export default function App() {
           <PostCreator 
             connectedAccounts={connectedAccounts} 
             onNavigateToAuth={() => setActivePage(NavPage.CHANNELS)} 
-            // In a real app, we'd wrap this in a callback to update App state if result changes
-            // For this implementation, the result is managed within PostCreator's local state 
-            // but we can lift it if we want persistent navigation
+            onCampaignReady={handleCampaignSynthesized}
+            onNavigateToSchedule={() => setActivePage(NavPage.SCHEDULE)}
           />
         );
       case NavPage.SCHEDULE:
-        return <PostSchedule campaign={currentCampaign} />;
+        return (
+          <PostSchedule 
+            campaign={currentCampaign} 
+            connectedAccounts={connectedAccounts}
+            onNavigateToChannels={() => setActivePage(NavPage.CHANNELS)}
+            onCampaignUpdate={setCurrentCampaign}
+          />
+        );
       case NavPage.STUDIO_IDEATION:
         return <ContentLab />;
       case NavPage.STUDIO_INTELLIGENCE:
